@@ -1192,7 +1192,6 @@
       history.replaceState(null, '', window.location.pathname);
     }
 
-    if (localStorage.getItem('ownerMode') === 'true') enableOwnerMode();
     checkOwnerKey();
 
     // Owner shortcut: Ctrl+Shift+Q opens the secure-code screen
@@ -1240,7 +1239,6 @@
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('B-' + passDigits));
       const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
       if (hex === PASS_HASH) {
-        try { localStorage.setItem('ownerMode', 'true'); } catch (err) {}
         closePasscode();
         enableOwnerMode();
       } else {
