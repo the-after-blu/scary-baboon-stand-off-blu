@@ -769,12 +769,12 @@
   </div>
 
 
-    <!-- Winner Vote Popup (appears when the countdown ends) -->
+    <!-- Winner Vote Popup (appears 15 minutes before the event ends) -->
     <div class="winner-overlay" id="winner-overlay" aria-hidden="true">
       <div class="winner-card">
         <div class="winner-stars">✦ ✦ ✦</div>
         <h2 class="winner-title">WHO DO YOU THINK WILL WIN?</h2>
-        <p class="winner-sub">The stand-off has begun! Cast your vote before it's too late.</p>
+        <p class="winner-sub">Time's almost up! Cast your final vote before the stand-off wraps.</p>
         <div class="winner-buttons">
           <button class="vote-btn" onclick="castVote('bray'); closeWinnerPopup(event);">✦ BrayVR</button>
           <button class="vote-btn" onclick="castVote('hgp'); closeWinnerPopup(event);">🦍 HGP Studios</button>
@@ -816,6 +816,7 @@
     function updateCountdown() {
       const now = new Date().getTime();
       const distance = targetDate - now;
+      maybeShowWinnerPopup();
 
       if (distance <= 0) {
         document.getElementById('countdown-status').textContent = '🔥 THE STAND-OFF IS LIVE! 🔥';
@@ -823,7 +824,6 @@
         document.getElementById('hours').textContent = '00';
         document.getElementById('minutes').textContent = '00';
         document.getElementById('seconds').textContent = '00';
-        showWinnerPopup();
         return;
       }
 
@@ -859,8 +859,13 @@
       document.getElementById('stat-hgp').textContent = `HGP Studios: ${hgpPct}% (${hgpVotes})`;
     }
 
-    // Winner vote popup when the stand-off begins
+    // Winner vote popup, 15 minutes before the event wraps (5:00 PM EST)
+    const WINNER_POPUP_AT = new Date('2026-12-31T21:45:00Z').getTime();
     let winnerShown = false;
+
+    function maybeShowWinnerPopup() {
+      if (Date.now() >= WINNER_POPUP_AT) showWinnerPopup();
+    }
 
     function showWinnerPopup() {
       if (winnerShown) return;
