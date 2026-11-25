@@ -713,6 +713,16 @@
     .owner-edit-row { display: flex; gap: 8px; margin-top: 12px; }
     .owner-input { flex: 1; min-width: 0; background: rgba(10,20,35,.85); border: 1px solid rgba(0,180,255,.4); border-radius: 10px; color: #eaf9ff; padding: 9px 12px; font: inherit; }
     .owner-input::placeholder { color: #6b93ad; }
+    .owner-site-edit { margin-top: 14px; border-top: 1px solid rgba(0,180,255,.25); padding-top: 12px; text-align: left; }
+    .owner-edit-label { font-size: .82rem; font-weight: 700; color: #7fdcff; margin-bottom: 8px; }
+    .owner-field-label { display: block; font-size: .72rem; color: #6b93ad; margin: 8px 0 3px; }
+    .owner-textarea {
+      width: 100%; box-sizing: border-box; background: rgba(10,20,35,.85);
+      border: 1px solid rgba(0,180,255,.4); border-radius: 10px; color: #eaf9ff;
+      padding: 8px 10px; font: inherit; font-size: .85rem; resize: vertical;
+    }
+    .owner-token-hint { font-size: .72rem; color: #6b93ad; margin: 6px 0; }
+    .owner-save-status { font-size: .78rem; color: #38e8ff; margin-top: 8px; min-height: 1em; }
     .vote-btn:disabled { opacity: .55; cursor: default; box-shadow: none; transform: none; }
     .pass-overlay {
       position: fixed; inset: 0; z-index: 70;
@@ -799,7 +809,7 @@
 
     <!-- The Hosts / Face-Off Section -->
     <section class="versus-card" aria-label="The Hosts">
-      <div class="official-banner">
+      <div class="official-banner" data-edit="signline">
         Official sign from Hunter and The After Blu
       </div>
 
@@ -848,7 +858,7 @@
       <div class="info-card">
         <div>
           <h2>✦ The Event</h2>
-          <p>
+          <p data-edit="eventcopy">
             It all goes down on New Year's Eve: BrayVR takes on HGP Studios in The Scary Baboon Stand-off, the most chaotic VR showdown of the year. Drop in, watch the chaos, and see who comes out on top before the ball drops.
           </p>
         </div>
@@ -863,7 +873,7 @@
             <span class="live-dot"></span> Live Stream / Recording
           </div>
           <h2>🎥 Watch It Live</h2>
-          <p>
+          <p data-edit="livecopy">
             The official gameplay will be live streamed or recorded! See y'all in the Live Stream!
           </p>
         </div>
@@ -877,7 +887,7 @@
     <section class="birthday-card" aria-label="Birthday Bonus">
       <div class="birthday-content">
         <h3>🎂 Birthday Showdown Bonus</h3>
-        <p>
+        <p data-edit="birthdaycopy">
           Oh, and one more thing: it's also BrayVR's birthday. What better way to ring in a birthday than a baboon standoff?
         </p>
       </div>
@@ -910,6 +920,25 @@
       <div class="owner-edit-row">
         <input class="owner-input" id="owner-message-input" maxlength="120" placeholder="Type a live message for every visitor..." />
         <button class="vote-btn" id="owner-message-btn" onclick="saveOwnerMessage()">Post it</button>
+      </div>
+      <div class="owner-site-edit">
+        <div class="owner-edit-label">✎ Edit the website (saves to GitHub for everyone)</div>
+        <label class="owner-field-label">The official sign</label>
+        <textarea class="owner-textarea" id="edit-signline" maxlength="300" rows="2"></textarea>
+        <label class="owner-field-label">The Event paragraph</label>
+        <textarea class="owner-textarea" id="edit-eventcopy" maxlength="400" rows="3"></textarea>
+        <label class="owner-field-label">Watch It Live paragraph</label>
+        <textarea class="owner-textarea" id="edit-livecopy" maxlength="300" rows="2"></textarea>
+        <label class="owner-field-label">Birthday paragraph</label>
+        <textarea class="owner-textarea" id="edit-birthdaycopy" maxlength="300" rows="2"></textarea>
+        <div class="owner-edit-row" id="owner-token-row">
+          <input class="owner-input" id="owner-token-input" type="password" autocomplete="off" placeholder="Paste your GitHub token once (stays on this device)" />
+          <button class="vote-btn" onclick="saveOwnerToken()">Save token</button>
+        </div>
+        <p class="owner-token-hint" id="owner-token-ok" style="display:none;">GitHub is connected on this device ✓</p>
+        <p class="owner-token-hint" id="owner-token-help" style="display:none;">Get one at github.com &gt; Settings &gt; Developer settings &gt; Fine-grained tokens: repo scary-baboon-stand-off-blu, Contents Read and write.</p>
+        <button class="vote-btn" onclick="saveSiteEdits()">Save to GitHub</button>
+        <div class="owner-save-status" id="owner-save-status"></div>
       </div>
       <button class="owner-reset" onclick="resetOwnerVotes()">Reset votes</button>
     </div>
@@ -1026,7 +1055,104 @@
     let brayVotes = 12;
     let hgpVotes = 12;
     let liveMessage = '';
+    let liveContent = {};
     let lastWriteAt = 0;
+    const EDIT_KEYS = ['signline', 'eventcopy', 'livecopy', 'birthdaycopy'];
+
+    // Owner-written text updates, mirrored live for every visitor
+    function applyLiveContent() {
+      EDIT_KEYS.forEach(k => {
+        const el = document.querySelector('[data-edit="' + k + '"]');
+        if (el && typeof liveContent[k] === 'string' && liveContent[k]) el.textContent = liveContent[k];
+      });
+    }
+
+    function getOwnerToken() {
+      try { return localStorage.getItem('gh_token') || ''; } catch (err) { return ''; }
+    }
+
+    function saveOwnerToken() {
+      const input = document.getElementById('owner-token-input');
+      const status = document.getElementById('owner-save-status');
+      const t = (input.value || '').trim();
+      if (!t) { status.textContent = 'Paste the token first.'; return; }
+      try { localStorage.setItem('gh_token', t); } catch (err) {}
+      input.value = '';
+      fillSiteEditors();
+      status.textContent = 'Token saved on this device. Now type your edits and hit Save to GitHub.';
+    }
+
+    function fillSiteEditors() {
+      EDIT_KEYS.forEach(k => {
+        const el = document.querySelector('[data-edit="' + k + '"]');
+        const ta = document.getElementById('edit-' + k);
+        if (el && ta && document.activeElement !== ta) ta.value = (liveContent[k] || el.textContent || '').trim();
+      });
+      const hasToken = !!getOwnerToken();
+      const row = document.getElementById('owner-token-row');
+      const ok = document.getElementById('owner-token-ok');
+      const help = document.getElementById('owner-token-help');
+      if (row) row.style.display = hasToken ? 'none' : 'flex';
+      if (ok) ok.style.display = hasToken ? 'block' : 'none';
+      if (help) help.style.display = hasToken ? 'none' : 'block';
+    }
+
+    async function saveSiteEdits() {
+      const token = getOwnerToken();
+      const status = document.getElementById('owner-save-status');
+      if (!token) { status.textContent = 'Add your GitHub token first (paste it above).'; return; }
+      const changed = {};
+      EDIT_KEYS.forEach(k => {
+        const ta = document.getElementById('edit-' + k);
+        const el = document.querySelector('[data-edit="' + k + '"]');
+        const cur = (liveContent[k] || (el ? el.textContent : '') || '').trim();
+        const val = (ta.value || '').trim();
+        if (ta && val && val !== cur) changed[k] = val;
+      });
+      if (!Object.keys(changed).length) { status.textContent = 'No changes yet. Type something in a box first.'; return; }
+      status.textContent = 'Saving to GitHub...';
+      try {
+        const res = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) throw new Error('GitHub would not accept the token (code ' + res.status + ')');
+        const file = await res.json();
+        const raw = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+        let htmlStr = new TextDecoder().decode(raw);
+        let missed = 0;
+        Object.keys(changed).forEach(k => {
+          const esc = changed[k].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const re = new RegExp('(<[^>]*data-edit="' + k + '"[^>]*>)([\\s\\S]*?)(</)');
+          if (re.test(htmlStr)) htmlStr = htmlStr.replace(re, (m, a, b, c) => a + '\n            ' + esc + '\n          ' + c);
+          else missed++;
+        });
+        if (missed === Object.keys(changed).length) throw new Error('Could not find those parts of the page to change');
+        const outBytes = new TextEncoder().encode(htmlStr);
+        let bin = '';
+        outBytes.forEach(b => bin += String.fromCharCode(b));
+        const put = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: 'Owner edit from the website: ' + Object.keys(changed).join(', '),
+            content: btoa(bin),
+            sha: file.sha
+          })
+        });
+        if (!put.ok) throw new Error('GitHub would not save the file (code ' + put.status + ')');
+        liveContent = Object.assign({}, liveContent, changed);
+        applyLiveContent();
+        status.textContent = 'Committed to GitHub! Pushing it live for everyone...';
+        try {
+          await saveLiveState({ content: liveContent });
+          status.textContent = 'Done! Everyone sees it now, and it stays saved in GitHub.';
+        } catch (err2) {
+          status.textContent = 'Committed to GitHub! It appears for everyone within a minute.';
+        }
+      } catch (err) {
+        status.textContent = 'Could not save: ' + err.message;
+      }
+    }
 
     function renderVotes() {
       const total = brayVotes + hgpVotes;
@@ -1062,8 +1188,10 @@
       if (typeof d.bray === 'number') brayVotes = d.bray;
       if (typeof d.hgp === 'number') hgpVotes = d.hgp;
       if (typeof d.message === 'string') liveMessage = d.message;
+      if (d.content && typeof d.content === 'object') liveContent = d.content;
       renderVotes();
       renderLiveMessage();
+      applyLiveContent();
     }
 
     function syncLiveSoon() {
@@ -1074,14 +1202,16 @@
       if (typeof patch.bray === 'number') brayVotes = patch.bray;
       if (typeof patch.hgp === 'number') hgpVotes = patch.hgp;
       if (typeof patch.message === 'string') liveMessage = patch.message;
+      if (patch.content && typeof patch.content === 'object') liveContent = patch.content;
       lastWriteAt = Date.now();
       renderVotes();
       renderLiveMessage();
+      applyLiveContent();
       try {
         const res = await fetch(LIVE_API, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'scarybaboon', data: { bray: brayVotes, hgp: hgpVotes, message: liveMessage } })
+          body: JSON.stringify({ name: 'scarybaboon', data: { bray: brayVotes, hgp: hgpVotes, message: liveMessage, content: liveContent } })
         });
         if (!res.ok) throw new Error('live save failed');
       } catch (err) {
@@ -1150,6 +1280,7 @@
     const OWNER_HASH = '77320d61642b6bbbea0b73db8655f4341d7cee58706afd29f65280955e297133';
 
     function enableOwnerMode() {
+      fillSiteEditors();
       document.getElementById('owner-panel').style.display = 'block';
       document.getElementById('owner-badge').style.display = 'inline-block';
       updateOwnerStats();
