@@ -714,6 +714,44 @@
     .owner-input { flex: 1; min-width: 0; background: rgba(10,20,35,.85); border: 1px solid rgba(0,180,255,.4); border-radius: 10px; color: #eaf9ff; padding: 9px 12px; font: inherit; }
     .owner-input::placeholder { color: #6b93ad; }
     .vote-btn:disabled { opacity: .55; cursor: default; box-shadow: none; transform: none; }
+    .pass-overlay {
+      position: fixed; inset: 0; z-index: 70;
+      background: rgba(4,10,20,.78);
+      display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+    .pass-overlay.show { display: flex; }
+    .pass-card {
+      background: rgba(13,22,38,.97);
+      border: 1px solid rgba(0,180,255,.45);
+      border-radius: 22px; padding: 28px 26px 20px;
+      width: 300px; max-width: 90vw; text-align: center;
+      box-shadow: 0 0 40px rgba(0,180,255,.28);
+    }
+    .pass-title { font-size: 1.05rem; font-weight: 700; color: #eaf9ff; margin: 0 0 4px; }
+    .pass-sub { font-size: .8rem; color: #7fdcff; margin: 0 0 18px; }
+    .pass-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 16px; min-height: 34px; }
+    .pass-prefix { font-size: 1.35rem; font-weight: 700; color: #eaf9ff; letter-spacing: .05em; }
+    .pass-dots { display: flex; gap: 10px; }
+    .pass-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(0,180,255,.55); }
+    .pass-dot.filled { background: #38e8ff; border-color: #38e8ff; box-shadow: 0 0 10px rgba(56,232,255,.8); }
+    .pass-card.shake { animation: passShake .4s; }
+    @keyframes passShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-10px); }
+      40% { transform: translateX(10px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .pass-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .pass-key {
+      background: rgba(0,180,255,.12); border: 1px solid rgba(0,180,255,.35);
+      color: #eaf9ff; font: inherit; font-size: 1.25rem; font-weight: 600;
+      border-radius: 50%; width: 62px; height: 62px; justify-self: center; cursor: pointer;
+    }
+    .pass-key:active { background: rgba(0,180,255,.3); }
+    .pass-key.ghost { visibility: hidden; pointer-events: none; }
+    .pass-cancel { margin-top: 14px; background: none; border: none; color: #7fdcff; font: inherit; font-size: .85rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -874,6 +912,38 @@
         <button class="vote-btn" id="owner-message-btn" onclick="saveOwnerMessage()">Post it</button>
       </div>
       <button class="owner-reset" onclick="resetOwnerVotes()">Reset votes</button>
+    </div>
+
+    <!-- Owner passcode screen (opens when owner mode is requested) -->
+    <div class="pass-overlay" id="pass-overlay" aria-hidden="true">
+      <div class="pass-card" id="pass-card">
+        <p class="pass-title">Enter your Secure Code</p>
+        <p class="pass-sub">Owner access</p>
+        <div class="pass-row">
+          <span class="pass-prefix">B-</span>
+          <span class="pass-dots">
+            <span class="pass-dot" id="pass-dot-0"></span>
+            <span class="pass-dot" id="pass-dot-1"></span>
+            <span class="pass-dot" id="pass-dot-2"></span>
+            <span class="pass-dot" id="pass-dot-3"></span>
+          </span>
+        </div>
+        <div class="pass-keypad">
+          <button class="pass-key" onclick="passPress('1')">1</button>
+          <button class="pass-key" onclick="passPress('2')">2</button>
+          <button class="pass-key" onclick="passPress('3')">3</button>
+          <button class="pass-key" onclick="passPress('4')">4</button>
+          <button class="pass-key" onclick="passPress('5')">5</button>
+          <button class="pass-key" onclick="passPress('6')">6</button>
+          <button class="pass-key" onclick="passPress('7')">7</button>
+          <button class="pass-key" onclick="passPress('8')">8</button>
+          <button class="pass-key" onclick="passPress('9')">9</button>
+          <button class="pass-key ghost"></button>
+          <button class="pass-key" onclick="passPress('0')">0</button>
+          <button class="pass-key" onclick="passPress('del')">⌫</button>
+        </div>
+        <button class="pass-cancel" onclick="closePasscode()">Cancel</button>
+      </div>
     </div>
 
     <!-- Winner Vote Popup (appears 15 minutes before the event ends) -->
@@ -1118,23 +1188,74 @@
       if (!token) return;
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
       const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
-      if (hex === OWNER_HASH) {
-        try { localStorage.setItem('ownerMode', 'true'); } catch (e) {}
-        enableOwnerMode();
-      }
+      if (hex === OWNER_HASH) openPasscode();
       history.replaceState(null, '', window.location.pathname);
     }
 
     if (localStorage.getItem('ownerMode') === 'true') enableOwnerMode();
     checkOwnerKey();
 
-    // Owner shortcut: Ctrl+Shift+Q turns on owner mode on this device
+    // Owner shortcut: Ctrl+Shift+Q opens the secure-code screen
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && (e.key === 'Q' || e.key === 'q')) {
         e.preventDefault();
-        try { localStorage.setItem('ownerMode', 'true'); } catch (err) {}
-        enableOwnerMode();
+        openPasscode();
       }
+    });
+
+    // Owner passcode: the digits are never written in this code, only a fingerprint of them
+    const PASS_HASH = 'eee52f6c7ab865f79846029ee615238ae50173f4ad9ec6664104e49e6929446f';
+    let passDigits = '';
+
+    function openPasscode() {
+      passDigits = '';
+      renderPassDots();
+      const overlay = document.getElementById('pass-overlay');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function closePasscode() {
+      const overlay = document.getElementById('pass-overlay');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+      passDigits = '';
+    }
+
+    function renderPassDots() {
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('pass-dot-' + i).classList.toggle('filled', i < passDigits.length);
+      }
+    }
+
+    function passPress(d) {
+      if (d === 'del') { passDigits = passDigits.slice(0, -1); renderPassDots(); return; }
+      if (passDigits.length >= 4) return;
+      passDigits += d;
+      renderPassDots();
+      if (passDigits.length === 4) checkPasscode();
+    }
+
+    async function checkPasscode() {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('B-' + passDigits));
+      const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hex === PASS_HASH) {
+        try { localStorage.setItem('ownerMode', 'true'); } catch (err) {}
+        closePasscode();
+        enableOwnerMode();
+      } else {
+        const card = document.getElementById('pass-card');
+        card.classList.add('shake');
+        setTimeout(() => { card.classList.remove('shake'); passDigits = ''; renderPassDots(); }, 420);
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById('pass-overlay');
+      if (!overlay || !overlay.classList.contains('show')) return;
+      if (/^[0-9]$/.test(e.key)) { passPress(e.key); e.preventDefault(); }
+      else if (e.key === 'Backspace') { passPress('del'); e.preventDefault(); }
+      else if (e.key === 'Escape') { closePasscode(); e.preventDefault(); }
     });
 
     // Birthday Blue Star Burst Effect
