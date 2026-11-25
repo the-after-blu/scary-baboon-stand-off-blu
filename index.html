@@ -713,6 +713,7 @@
     .owner-edit-row { display: flex; gap: 8px; margin-top: 12px; }
     .owner-input { flex: 1; min-width: 0; background: rgba(10,20,35,.85); border: 1px solid rgba(0,180,255,.4); border-radius: 10px; color: #eaf9ff; padding: 9px 12px; font: inherit; }
     .owner-input::placeholder { color: #6b93ad; }
+    .vote-btn:disabled { opacity: .55; cursor: default; box-shadow: none; transform: none; }
   </style>
 </head>
 <body>
@@ -786,8 +787,8 @@
       <div class="hype-section">
         <div class="hype-title">Pick Your Side Before the Stand-Off</div>
         <div class="hype-buttons">
-          <button class="vote-btn" onclick="castVote('bray')">✦ Hype BrayVR</button>
-          <button class="vote-btn" onclick="castVote('hgp')">🦍 Hype HGP Studios</button>
+          <button class="vote-btn" id="vote-bray" onclick="castVote('bray')">✦ Hype BrayVR</button>
+          <button class="vote-btn" id="vote-hgp" onclick="castVote('hgp')">🦍 Hype HGP Studios</button>
         </div>
         <div class="hype-bar-container">
           <div class="hype-fill-left" id="bar-bray"></div>
@@ -882,8 +883,8 @@
         <h2 class="winner-title">WHO DO YOU THINK WILL WIN?</h2>
         <p class="winner-sub">Time's almost up! Cast your final vote before the stand-off wraps.</p>
         <div class="winner-buttons">
-          <button class="vote-btn" onclick="castVote('bray'); closeWinnerPopup(event);">✦ BrayVR</button>
-          <button class="vote-btn" onclick="castVote('hgp'); closeWinnerPopup(event);">🦍 HGP Studios</button>
+          <button class="vote-btn" id="popup-vote-bray" onclick="castVote('bray'); closeWinnerPopup(event);">✦ BrayVR</button>
+          <button class="vote-btn" id="popup-vote-hgp" onclick="castVote('hgp'); closeWinnerPopup(event);">🦍 HGP Studios</button>
         </div>
         <button class="winner-close" onclick="closeWinnerPopup(event)">Maybe later ✦</button>
       </div>
@@ -1014,12 +1015,36 @@
       }
     }
 
-    async function castVote(team) {
-      if (team === 'bray') return saveLiveState({ bray: brayVotes + 1 });
-      if (team === 'hgp') return saveLiveState({ hgp: hgpVotes + 1 });
-      renderVotes();
+    function visitorLockInfo() {
+      try {
+        return { voted: localStorage.getItem('sbv_voted') === '1', team: localStorage.getItem('sbv_team') || '' };
+      } catch (err) { return { voted: false, team: '' }; }
     }
 
+    function lockVisitorButtons() {
+      const { voted, team } = visitorLockInfo();
+      if (!voted) return;
+      [['vote-bray', 'bray'], ['vote-hgp', 'hgp'], ['popup-vote-bray', 'bray'], ['popup-vote-hgp', 'hgp']].forEach((pair) => {
+        const btn = document.getElementById(pair[0]);
+        if (!btn) return;
+        btn.disabled = true;
+        if (pair[1] === team) btn.textContent = '✓ Your pick';
+      });
+    }
+
+    async function castVote(team) {
+      if (team !== 'bray' && team !== 'hgp') { renderVotes(); return; }
+      if (visitorLockInfo().voted) { lockVisitorButtons(); return; }
+      const patch = team === 'bray' ? { bray: brayVotes + 1 } : { hgp: hgpVotes + 1 };
+      await saveLiveState(patch);
+      try {
+        localStorage.setItem('sbv_voted', '1');
+        localStorage.setItem('sbv_team', team);
+      } catch (err) {}
+      lockVisitorButtons();
+    }
+
+    lockVisitorButtons();
     fetchLiveState().catch(() => {});
     setInterval(() => {
       if (Date.now() - lastWriteAt > 2000) fetchLiveState().catch(() => {});
@@ -1098,6 +1123,15 @@
 
     if (localStorage.getItem('ownerMode') === 'true') enableOwnerMode();
     checkOwnerKey();
+
+    // Owner shortcut: Ctrl+Shift+Q turns on owner mode on this device
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && (e.key === 'Q' || e.key === 'q')) {
+        e.preventDefault();
+        try { localStorage.setItem('ownerMode', 'true'); } catch (err) {}
+        enableOwnerMode();
+      }
+    });
 
     // Birthday Blue Star Burst Effect
     function triggerBirthdayStars(e) {
