@@ -897,6 +897,8 @@
 
     // Countdown to December 31, 2026 at 3:30 PM EST (-05:00)
     const targetDate = new Date('2026-12-31T15:30:00-05:00').getTime();
+    // Winner vote popup, 15 minutes before the event wraps (5:00 PM EST)
+    const WINNER_POPUP_AT = new Date('2026-12-31T21:45:00Z').getTime();
 
     function updateCountdown() {
       const now = new Date().getTime();
@@ -945,8 +947,7 @@
       updateOwnerStats();
     }
 
-    // Winner vote popup, 15 minutes before the event wraps (5:00 PM EST)
-    const WINNER_POPUP_AT = new Date('2026-12-31T21:45:00Z').getTime();
+    // Winner vote popup (timer constant lives at the top with the countdown target)
     let winnerShown = false;
 
     function maybeShowWinnerPopup() {
