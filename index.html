@@ -700,6 +700,19 @@
       vertical-align: middle;
       text-shadow: 0 0 10px rgba(56, 232, 255, 0.6);
     }
+  
+    .live-update-bar {
+      margin: 22px auto 0; max-width: 620px;
+      background: linear-gradient(90deg, rgba(0,180,255,.10), rgba(56,232,255,.16), rgba(0,180,255,.10));
+      border: 1px solid rgba(0,180,255,.45); border-radius: 14px;
+      padding: 12px 18px; text-align: center;
+      box-shadow: 0 0 18px rgba(0,180,255,.22);
+    }
+    .live-update-label { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: #7fdcff; display: block; margin-bottom: 4px; }
+    .live-update-text { font-weight: 600; color: #eaf9ff; }
+    .owner-edit-row { display: flex; gap: 8px; margin-top: 12px; }
+    .owner-input { flex: 1; min-width: 0; background: rgba(10,20,35,.85); border: 1px solid rgba(0,180,255,.4); border-radius: 10px; color: #eaf9ff; padding: 9px 12px; font: inherit; }
+    .owner-input::placeholder { color: #6b93ad; }
   </style>
 </head>
 <body>
@@ -784,6 +797,10 @@
           <span id="stat-bray">BrayVR: 50%</span>
           <span id="stat-hgp">HGP Studios: 50%</span>
         </div>
+        <div class="live-update-bar" id="live-update-bar" style="display: none;">
+          <span class="live-update-label">Live from BrayVR</span>
+          <span class="live-update-text" id="live-update-text"></span>
+        </div>
       </div>
     </section>
 
@@ -850,6 +867,10 @@
       <div class="owner-buttons">
         <button class="vote-btn" onclick="boostVotes('bray')">+5 BrayVR Hype</button>
         <button class="vote-btn" onclick="boostVotes('hgp')">+5 HGP Hype</button>
+      </div>
+      <div class="owner-edit-row">
+        <input class="owner-input" id="owner-message-input" maxlength="120" placeholder="Type a live message for every visitor..." />
+        <button class="vote-btn" id="owner-message-btn" onclick="saveOwnerMessage()">Post it</button>
       </div>
       <button class="owner-reset" onclick="resetOwnerVotes()">Reset votes</button>
     </div>
@@ -928,14 +949,15 @@
     updateCountdown();
     setInterval(updateCountdown, 1000);
 
-    // Interactive Hype Voting
+    // Live shared hype: votes and the owner announcement are stored once,
+    // so every visitor sees the same counts and the same message, in real time.
+    const LIVE_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a21444dc074d3c';
     let brayVotes = 12;
     let hgpVotes = 12;
+    let liveMessage = '';
+    let lastWriteAt = 0;
 
-    function castVote(team) {
-      if (team === 'bray') brayVotes++;
-      if (team === 'hgp') hgpVotes++;
-
+    function renderVotes() {
       const total = brayVotes + hgpVotes;
       const brayPct = Math.round((brayVotes / total) * 100);
       const hgpPct = 100 - brayPct;
@@ -946,6 +968,62 @@
       document.getElementById('stat-hgp').textContent = `HGP Studios: ${hgpPct}% (${hgpVotes})`;
       updateOwnerStats();
     }
+
+    function renderLiveMessage() {
+      const bar = document.getElementById('live-update-bar');
+      const text = document.getElementById('live-update-text');
+      if (!bar || !text) return;
+      if (liveMessage) {
+        text.textContent = liveMessage;
+        bar.style.display = 'block';
+      } else {
+        bar.style.display = 'none';
+      }
+      const input = document.getElementById('owner-message-input');
+      if (input && document.activeElement !== input) input.value = liveMessage;
+    }
+
+    async function fetchLiveState() {
+      const res = await fetch(LIVE_API + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('live sync failed');
+      const body = await res.json();
+      const d = body.data || {};
+      if (typeof d.bray === 'number') brayVotes = d.bray;
+      if (typeof d.hgp === 'number') hgpVotes = d.hgp;
+      if (typeof d.message === 'string') liveMessage = d.message;
+      renderVotes();
+      renderLiveMessage();
+    }
+
+    async function saveLiveState(patch) {
+      if (typeof patch.bray === 'number') brayVotes = patch.bray;
+      if (typeof patch.hgp === 'number') hgpVotes = patch.hgp;
+      if (typeof patch.message === 'string') liveMessage = patch.message;
+      lastWriteAt = Date.now();
+      renderVotes();
+      renderLiveMessage();
+      try {
+        const res = await fetch(LIVE_API, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'scarybaboon', data: { bray: brayVotes, hgp: hgpVotes, message: liveMessage } })
+        });
+        if (!res.ok) throw new Error('live save failed');
+      } catch (err) {
+        // Offline: keep the local totals on screen; the next sync catches up.
+      }
+    }
+
+    async function castVote(team) {
+      if (team === 'bray') return saveLiveState({ bray: brayVotes + 1 });
+      if (team === 'hgp') return saveLiveState({ hgp: hgpVotes + 1 });
+      renderVotes();
+    }
+
+    fetchLiveState().catch(() => {});
+    setInterval(() => {
+      if (Date.now() - lastWriteAt > 2000) fetchLiveState().catch(() => {});
+    }, 4000);
 
     // Winner vote popup (timer constant lives at the top with the countdown target)
     let winnerShown = false;
@@ -985,14 +1063,25 @@
       document.getElementById('owner-hgp').textContent = `HGP Studios: ${hgpVotes} votes`;
     }
 
-    function boostVotes(team) {
-      for (let i = 0; i < 5; i++) castVote(team);
+    async function boostVotes(team) {
+      if (team === 'bray') return saveLiveState({ bray: brayVotes + 5 });
+      if (team === 'hgp') return saveLiveState({ hgp: hgpVotes + 5 });
     }
 
     function resetOwnerVotes() {
-      brayVotes = 12;
-      hgpVotes = 12;
-      castVote('none');
+      saveLiveState({ bray: 12, hgp: 12 });
+    }
+
+    async function saveOwnerMessage() {
+      const input = document.getElementById('owner-message-input');
+      const btn = document.getElementById('owner-message-btn');
+      if (!input) return;
+      liveMessage = input.value.trim().slice(0, 120);
+      await saveLiveState({ message: liveMessage });
+      if (btn) {
+        btn.textContent = 'Posted!';
+        setTimeout(() => { btn.textContent = 'Post it'; }, 1500);
+      }
     }
 
     async function checkOwnerKey() {
