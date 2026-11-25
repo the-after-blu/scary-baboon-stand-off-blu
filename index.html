@@ -985,7 +985,7 @@
     }
 
     async function fetchLiveState() {
-      const res = await fetch(LIVE_API + '?t=' + Date.now(), { cache: 'no-store' });
+      const res = await fetch(LIVE_API, { cache: 'no-store' });
       if (!res.ok) throw new Error('live sync failed');
       const body = await res.json();
       const d = body.data || {};
@@ -994,6 +994,10 @@
       if (typeof d.message === 'string') liveMessage = d.message;
       renderVotes();
       renderLiveMessage();
+    }
+
+    function syncLiveSoon() {
+      setTimeout(() => fetchLiveState().catch(() => {}), 2500);
     }
 
     async function saveLiveState(patch) {
@@ -1045,10 +1049,10 @@
     }
 
     lockVisitorButtons();
-    fetchLiveState().catch(() => {});
+    fetchLiveState().catch(syncLiveSoon);
     setInterval(() => {
-      if (Date.now() - lastWriteAt > 2000) fetchLiveState().catch(() => {});
-    }, 4000);
+      if (Date.now() - lastWriteAt > 2000) fetchLiveState().catch(syncLiveSoon);
+    }, 10000);
 
     // Winner vote popup (timer constant lives at the top with the countdown target)
     let winnerShown = false;
