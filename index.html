@@ -792,6 +792,22 @@
     .pass-key:active { background: rgba(0,180,255,.3); }
     .pass-key.ghost { visibility: hidden; pointer-events: none; }
     .pass-cancel { margin-top: 14px; background: none; border: none; color: #7fdcff; font: inherit; font-size: .85rem; cursor: pointer; }
+
+    /* Tap-to-edit (owner live preview) */
+    body.owner-live [data-tap] { cursor: pointer; }
+    body.owner-live [data-tap]:hover { outline: 2px dashed var(--cyan-glow); outline-offset: 4px; border-radius: 10px; }
+    .tap-backdrop { display: none; position: fixed; inset: 0; background: rgba(5,8,15,0.85); z-index: 1200; align-items: center; justify-content: center; padding: 20px; }
+    .tap-backdrop.open { display: flex; }
+    .tap-modal { background: #0a1526; border: 1px solid var(--border-glow); border-radius: 18px; padding: 24px; width: min(430px, 94vw); box-shadow: 0 0 40px rgba(0,180,255,0.25); }
+    .tap-modal h4 { margin: 0 0 4px; font-family: 'Orbitron', sans-serif; color: var(--text-main); letter-spacing: 1px; font-size: 17px; }
+    .tap-modal .tap-sub { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
+    .tap-modal label { display: block; font-size: 13px; color: var(--text-muted); margin: 10px 0 6px; }
+    .tap-modal input { width: 100%; box-sizing: border-box; background: rgba(12,20,36,0.78); border: 1px solid var(--border-glow); border-radius: 10px; padding: 12px 14px; color: var(--text-main); font-size: 15px; font-family: inherit; }
+    .tap-modal .tap-status { min-height: 18px; font-size: 13px; color: var(--cyan-glow); margin: 10px 0 0; }
+    .tap-modal .tap-row { display: flex; gap: 10px; margin-top: 14px; }
+    .tap-modal .tap-row button { flex: 1; border: none; border-radius: 12px; padding: 12px 0; font-weight: 700; cursor: pointer; font-family: inherit; }
+    #tap-save { background: var(--electric-blue); color: #04101f; }
+    #tap-cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border-glow); }
   </style>
 </head>
 <body>
@@ -805,7 +821,7 @@
       <div class="top-badge">
         <span>✦</span> Official VR Showdown <span>✦</span>
       </div>
-      <h1>THE SCARY BABOON STAND-OFF</h1>
+      <h1 data-tap="text:site-title">THE SCARY BABOON STAND-OFF</h1>
       <p class="hero-tagline">
         <span>BrayVR</span> vs. <span>HGP Studios</span>. One Scary Baboon arena. Zero chill.
       </p>
@@ -839,34 +855,34 @@
 
     <!-- The Hosts / Face-Off Section -->
     <section class="versus-card" aria-label="The Hosts">
-      <div class="official-banner" data-edit="signline">
+      <div class="official-banner" data-edit="signline" data-tap="text:signline">
         Official sign from Hunter and The After Blu
       </div>
 
       <div class="fighters-grid">
         <div class="fighter-box">
           <div class="fighter-icon">✦</div>
-          <div class="fighter-role">The After Blu</div>
-          <div class="fighter-name">BrayVR</div>
-          <div class="fighter-sub">Blue Star Challenger · Ready for Chaos</div>
+          <div class="fighter-role" data-tap="text:bray-role">The After Blu</div>
+          <div class="fighter-name" data-tap="text:bray-name">BrayVR</div>
+          <div class="fighter-sub" data-tap="text:bray-sub">Blue Star Challenger · Ready for Chaos</div>
         </div>
 
         <div class="vs-badge">X</div>
 
         <div class="fighter-box">
           <div class="fighter-icon hgp">🦍</div>
-          <div class="fighter-role">Host &amp; Contender</div>
-          <div class="fighter-name">HGP STUDIOS</div>
-          <div class="fighter-sub">HGP STUDIOS Entertainment · Hunter</div>
+          <div class="fighter-role" data-tap="text:hgp-role">Host &amp; Contender</div>
+          <div class="fighter-name" data-tap="text:hgp-name">HGP STUDIOS</div>
+          <div class="fighter-sub" data-tap="text:hgp-sub">HGP STUDIOS Entertainment · Hunter</div>
         </div>
       </div>
 
       <!-- Interactive Hype Meter -->
       <div class="hype-section">
-        <div class="hype-title">Pick Your Side Before the Stand-Off</div>
+        <div class="hype-title" data-tap="text:hype-title">Pick Your Side Before the Stand-Off</div>
         <div class="hype-buttons">
-          <button class="vote-btn" id="vote-bray" onclick="castVote('bray')">✦ Hype BrayVR</button>
-          <button class="vote-btn" id="vote-hgp" onclick="castVote('hgp')">🦍 Hype HGP Studios</button>
+          <button class="vote-btn" id="vote-bray" onclick="castVote('bray')" data-tap="btn:vote-bray">✦ Hype BrayVR</button>
+          <button class="vote-btn" id="vote-hgp" onclick="castVote('hgp')" data-tap="btn:vote-hgp">🦍 Hype HGP Studios</button>
         </div>
         <div class="hype-bar-container">
           <div class="hype-fill-left" id="bar-bray"></div>
@@ -887,12 +903,12 @@
     <section class="info-grid">
       <div class="info-card">
         <div>
-          <h2>✦ The Event</h2>
-          <p data-edit="eventcopy">
+          <h2 data-tap="text:event-h2">✦ The Event</h2>
+          <p data-edit="eventcopy" data-tap="text:eventcopy">
             It all goes down on New Year's Eve: BrayVR takes on HGP Studios in The Scary Baboon Stand-off, the most chaotic VR showdown of the year. Drop in, watch the chaos, and see who comes out on top before the ball drops.
           </p>
         </div>
-        <button class="action-btn" onclick="downloadCalendarInvite()">
+        <button class="action-btn" onclick="downloadCalendarInvite()" data-tap="btn:calendar">
           📅 Add to Calendar (Dec 31 · 3:30 PM EST)
         </button>
       </div>
@@ -902,12 +918,12 @@
           <div class="live-pill">
             <span class="live-dot"></span> Live Stream / Recording
           </div>
-          <h2>🎥 Watch It Live</h2>
-          <p data-edit="livecopy">
+          <h2 data-tap="text:live-h2">🎥 Watch It Live</h2>
+          <p data-edit="livecopy" data-tap="text:livecopy">
             The official gameplay will be live streamed or recorded! See y'all in the Live Stream!
           </p>
         </div>
-        <a class="action-btn" href="https://www.youtube.com/@BrayVR_Blu" target="_blank" rel="noopener noreferrer">
+        <a class="action-btn" href="https://www.youtube.com/@BrayVR_Blu" target="_blank" rel="noopener noreferrer" data-tap="btn:youtube">
           ▶ Visit @BrayVR_Blu on YouTube
         </a>
       </div>
@@ -916,12 +932,12 @@
     <!-- Birthday Bonus Section -->
     <section class="birthday-card" aria-label="Birthday Bonus">
       <div class="birthday-content">
-        <h3>🎂 Birthday Showdown Bonus</h3>
-        <p data-edit="birthdaycopy">
+        <h3 data-tap="text:birthday-h3">🎂 Birthday Showdown Bonus</h3>
+        <p data-edit="birthdaycopy" data-tap="text:birthdaycopy">
           Oh, and one more thing: it's also BrayVR's birthday. What better way to ring in a birthday than a baboon standoff?
         </p>
       </div>
-      <button class="celebrate-btn" onclick="triggerBirthdayStars(event)">
+      <button class="celebrate-btn" onclick="triggerBirthdayStars(event)" data-tap="btn:birthday">
         ✦ Send Birthday Hype
       </button>
     </section>
@@ -1006,6 +1022,21 @@
     </div>
 
     <!-- Owner dev-tools editor: full site code, saved to GitHub -->
+    <div class="tap-backdrop" id="tap-modal" aria-hidden="true">
+      <div class="tap-modal">
+        <h4 id="tap-modal-title">Edit button</h4>
+        <p class="tap-sub">Your change goes live for everyone right away.</p>
+        <label id="tap-name-label" for="tap-name">Name for Button</label>
+        <input id="tap-name" maxlength="300" placeholder="any name" />
+        <label id="tap-link-label" for="tap-link">Link for Button</label>
+        <input id="tap-link" maxlength="500" placeholder="any_working_link.yeah" />
+        <p class="tap-status" id="tap-status"></p>
+        <div class="tap-row">
+          <button id="tap-save" type="button">Save</button>
+          <button id="tap-cancel" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
     <div class="dev-overlay" id="dev-overlay" aria-hidden="true">
       <div class="dev-panel">
         <div class="dev-topbar">
@@ -1103,6 +1134,8 @@
     let liveContent = {};
     let lastWriteAt = 0;
     const EDIT_KEYS = ['signline', 'eventcopy', 'livecopy', 'birthdaycopy'];
+    let tapEdits = { text: {}, btn: {} };
+    let ownerLive = false;
 
     // Owner-written text updates, mirrored live for every visitor
     function applyLiveContent() {
@@ -1332,9 +1365,13 @@
       if (typeof d.hgp === 'number') hgpVotes = d.hgp;
       if (typeof d.message === 'string') liveMessage = d.message;
       if (d.content && typeof d.content === 'object') liveContent = d.content;
+      if (typeof d.edits === 'string' && d.edits) {
+        try { const parsed = JSON.parse(d.edits); if (parsed && typeof parsed === 'object') tapEdits = parsed; } catch (err) {}
+      }
       renderVotes();
       renderLiveMessage();
       applyLiveContent();
+      applyTapEdits();
     }
 
     function syncLiveSoon() {
@@ -1346,6 +1383,7 @@
       if (typeof patch.hgp === 'number') hgpVotes = patch.hgp;
       if (typeof patch.message === 'string') liveMessage = patch.message;
       if (patch.content && typeof patch.content === 'object') liveContent = patch.content;
+      if (patch.edits && typeof patch.edits === 'object') tapEdits = patch.edits;
       lastWriteAt = Date.now();
       renderVotes();
       renderLiveMessage();
@@ -1354,7 +1392,7 @@
         const res = await fetch(LIVE_API, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'scarybaboon', data: { bray: brayVotes, hgp: hgpVotes, message: liveMessage, content: liveContent } })
+          body: JSON.stringify({ name: 'scarybaboon', data: { bray: brayVotes, hgp: hgpVotes, message: liveMessage, content: liveContent, edits: JSON.stringify(tapEdits) } })
         });
         if (!res.ok) throw new Error('live save failed');
       } catch (err) {
@@ -1397,6 +1435,121 @@
       if (Date.now() - lastWriteAt > 2000) fetchLiveState().catch(syncLiveSoon);
     }, 10000);
 
+    // Tap-to-edit: in owner mode, tapping text or a button on the live page opens a popup.
+    function applyTapEdits() {
+      Object.keys(tapEdits.text || {}).forEach((id) => {
+        if (EDIT_KEYS.indexOf(id) !== -1) return;
+        const el = document.querySelector('[data-tap="text:' + id + '"]');
+        if (el) el.textContent = tapEdits.text[id];
+      });
+      Object.keys(tapEdits.btn || {}).forEach((id) => {
+        const el = document.querySelector('[data-tap="btn:' + id + '"]');
+        if (!el) return;
+        const one = tapEdits.btn[id] || {};
+        if (one.label) el.textContent = one.label;
+        if (one.href) {
+          if (el.tagName === 'A') { el.setAttribute('href', one.href); }
+          else { el.onclick = (ev) => { ev.preventDefault(); window.open(one.href, '_blank'); }; }
+        }
+      });
+    }
+
+    let tapTarget = null;
+
+    function openTapModal(spec, el) {
+      tapTarget = el;
+      const idx = spec.indexOf(':');
+      const kind = spec.slice(0, idx);
+      const id = spec.slice(idx + 1);
+      el.dataset.tapKind = kind;
+      el.dataset.tapId = id;
+      const nameInput = document.getElementById('tap-name');
+      const linkInput = document.getElementById('tap-link');
+      const nameLabel = document.getElementById('tap-name-label');
+      const linkLabel = document.getElementById('tap-link-label');
+      document.getElementById('tap-status').textContent = '';
+      if (kind === 'btn') {
+        document.getElementById('tap-modal-title').textContent = 'Edit button';
+        nameLabel.textContent = 'Name for Button';
+        nameInput.placeholder = 'any name';
+        nameInput.value = el.textContent.trim();
+        linkLabel.textContent = el.tagName === 'A' ? 'Link for Button' : 'Link for Button (empty keeps what it does now)';
+        linkInput.value = el.tagName === 'A' ? (el.getAttribute('href') || '') : '';
+        linkLabel.style.display = 'block';
+        linkInput.style.display = 'block';
+      } else {
+        document.getElementById('tap-modal-title').textContent = 'Edit text';
+        nameLabel.textContent = 'New text';
+        nameInput.placeholder = 'Type the new words here';
+        nameInput.value = el.textContent.trim();
+        linkLabel.style.display = 'none';
+        linkInput.style.display = 'none';
+        linkInput.value = '';
+      }
+      document.getElementById('tap-modal').classList.add('open');
+      setTimeout(() => nameInput.focus(), 50);
+    }
+
+    function closeTapModal() {
+      document.getElementById('tap-modal').classList.remove('open');
+      tapTarget = null;
+    }
+
+    async function saveTapEdit() {
+      if (!tapTarget) return;
+      const kind = tapTarget.dataset.tapKind;
+      const id = tapTarget.dataset.tapId;
+      const status = document.getElementById('tap-status');
+      const name = document.getElementById('tap-name').value.trim();
+      let link = document.getElementById('tap-link').value.trim();
+      if (!name) { status.textContent = kind === 'btn' ? 'Type a name first.' : 'Type the new text first.'; return; }
+      status.textContent = 'Saving...';
+      if (kind === 'text') {
+        if (EDIT_KEYS.indexOf(id) !== -1) {
+          liveContent[id] = name;
+          tapTarget.textContent = name;
+          await saveLiveState({ content: liveContent });
+        } else {
+          tapEdits.text = tapEdits.text || {};
+          tapEdits.text[id] = name;
+          tapTarget.textContent = name;
+          await saveLiveState({ edits: tapEdits });
+        }
+      } else {
+        tapEdits.btn = tapEdits.btn || {};
+        const one = { label: name };
+        tapTarget.textContent = name;
+        if (link) {
+          if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+          one.href = link;
+          if (tapTarget.tagName === 'A') { tapTarget.setAttribute('href', link); }
+          else { tapTarget.onclick = (ev) => { ev.preventDefault(); window.open(link, '_blank'); }; }
+        }
+        tapEdits.btn[id] = one;
+        await saveLiveState({ edits: tapEdits });
+      }
+      status.textContent = 'Saved! Everyone sees it within a few seconds.';
+      setTimeout(closeTapModal, 900);
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!ownerLive) return;
+      const t = e.target.closest ? e.target.closest('[data-tap]') : null;
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openTapModal(t.getAttribute('data-tap') || '', t);
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('tap-modal');
+      if (modal && modal.classList.contains('open') && e.key === 'Escape') closeTapModal();
+    });
+
+    document.getElementById('tap-save').addEventListener('click', saveTapEdit);
+    document.getElementById('tap-cancel').addEventListener('click', closeTapModal);
+    document.getElementById('tap-modal').addEventListener('click', (e) => { if (e.target.id === 'tap-modal') closeTapModal(); });
+
     // Winner vote popup (timer constant lives at the top with the countdown target)
     let winnerShown = false;
 
@@ -1423,6 +1576,8 @@
     const OWNER_HASH = '77320d61642b6bbbea0b73db8655f4341d7cee58706afd29f65280955e297133';
 
     function enableOwnerMode() {
+      ownerLive = true;
+      document.body.classList.add('owner-live');
       fillSiteEditors();
       document.getElementById('owner-panel').style.display = 'block';
       document.getElementById('owner-badge').style.display = 'inline-block';
