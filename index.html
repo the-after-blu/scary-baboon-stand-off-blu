@@ -628,6 +628,78 @@
     .winner-close:hover {
       color: var(--cyan-glow);
     }
+
+    /* Owner mode */
+    .owner-panel {
+      background: var(--card-bg);
+      border: 2px solid var(--cyan-glow);
+      border-radius: 18px;
+      max-width: 640px;
+      margin: 2.5rem auto 0;
+      padding: 1.6rem 1.4rem;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0, 180, 255, 0.25);
+    }
+
+    .owner-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--cyan-glow);
+      text-shadow: 0 0 16px rgba(56, 232, 255, 0.8);
+      letter-spacing: 0.18em;
+      margin-bottom: 0.4rem;
+    }
+
+    .owner-note {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .owner-stats {
+      color: var(--text-body);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .owner-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .owner-reset {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .owner-reset:hover {
+      color: var(--cyan-glow);
+    }
+
+    .owner-badge {
+      display: none;
+      background: rgba(0, 180, 255, 0.12);
+      border: 1px solid var(--cyan-glow);
+      border-radius: 999px;
+      color: var(--cyan-glow);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      padding: 0.2rem 0.7rem;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+      text-shadow: 0 0 10px rgba(56, 232, 255, 0.6);
+    }
   </style>
 </head>
 <body>
@@ -764,10 +836,23 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="#00b4ff"><path d="M12 1L14.8 9.2L23 12L14.8 14.8L12 23L9.2 14.8L1 12L9.2 9.2L12 1Z"/></svg>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="#38e8ff"><path d="M12 1L14.8 9.2L23 12L14.8 14.8L12 23L9.2 14.8L1 12L9.2 9.2L12 1Z"/></svg>
       </div>
-      <p>The Scary Baboon Stand-off · The After Blu (BrayVR) × HGP STUDIOS Entertainment</p>
+      <p>The Scary Baboon Stand-off · The After Blu (BrayVR) × HGP STUDIOS Entertainment<span class="owner-badge" id="owner-badge">OWNER MODE</span></p>
     </footer>
   </div>
 
+
+  
+    <!-- Owner panel: only appears after the secret owner link -->
+    <div class="owner-panel" id="owner-panel" style="display: none;">
+      <div class="owner-title">OWNER MODE ✦</div>
+      <p class="owner-note">BrayVR's command center. Everyone else sees a normal website.</p>
+      <div class="owner-stats"><span id="owner-bray"></span> · <span id="owner-hgp"></span></div>
+      <div class="owner-buttons">
+        <button class="vote-btn" onclick="boostVotes('bray')">+5 BrayVR Hype</button>
+        <button class="vote-btn" onclick="boostVotes('hgp')">+5 HGP Hype</button>
+      </div>
+      <button class="owner-reset" onclick="resetOwnerVotes()">Reset votes</button>
+    </div>
 
     <!-- Winner Vote Popup (appears 15 minutes before the event ends) -->
     <div class="winner-overlay" id="winner-overlay" aria-hidden="true">
@@ -857,6 +942,7 @@
       document.getElementById('bar-hgp').style.width = hgpPct + '%';
       document.getElementById('stat-bray').textContent = `BrayVR: ${brayPct}% (${brayVotes})`;
       document.getElementById('stat-hgp').textContent = `HGP Studios: ${hgpPct}% (${hgpVotes})`;
+      updateOwnerStats();
     }
 
     // Winner vote popup, 15 minutes before the event wraps (5:00 PM EST)
@@ -881,6 +967,47 @@
       overlay.classList.remove('show');
       overlay.setAttribute('aria-hidden', 'true');
     }
+
+    // Owner mode: the secret key itself is never written in this code, only its fingerprint
+    const OWNER_HASH = '77320d61642b6bbbea0b73db8655f4341d7cee58706afd29f65280955e297133';
+
+    function enableOwnerMode() {
+      document.getElementById('owner-panel').style.display = 'block';
+      document.getElementById('owner-badge').style.display = 'inline-block';
+      updateOwnerStats();
+    }
+
+    function updateOwnerStats() {
+      const panel = document.getElementById('owner-panel');
+      if (panel.style.display !== 'block') return;
+      document.getElementById('owner-bray').textContent = `BrayVR: ${brayVotes} votes`;
+      document.getElementById('owner-hgp').textContent = `HGP Studios: ${hgpVotes} votes`;
+    }
+
+    function boostVotes(team) {
+      for (let i = 0; i < 5; i++) castVote(team);
+    }
+
+    function resetOwnerVotes() {
+      brayVotes = 12;
+      hgpVotes = 12;
+      castVote('none');
+    }
+
+    async function checkOwnerKey() {
+      const token = new URLSearchParams(window.location.search).get('owner');
+      if (!token) return;
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+      const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hex === OWNER_HASH) {
+        try { localStorage.setItem('ownerMode', 'true'); } catch (e) {}
+        enableOwnerMode();
+      }
+      history.replaceState(null, '', window.location.pathname);
+    }
+
+    if (localStorage.getItem('ownerMode') === 'true') enableOwnerMode();
+    checkOwnerKey();
 
     // Birthday Blue Star Burst Effect
     function triggerBirthdayStars(e) {
