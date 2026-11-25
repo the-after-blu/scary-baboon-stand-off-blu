@@ -541,6 +541,93 @@
         gap: 0.5rem;
       }
     }
+
+    /* Winner Vote Popup */
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(3, 6, 12, 0.82);
+      backdrop-filter: blur(6px);
+      padding: 1.25rem;
+    }
+
+    .winner-overlay.show {
+      display: flex;
+      animation: winnerFade 0.5s ease;
+    }
+
+    @keyframes winnerFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .winner-card {
+      background: var(--card-bg);
+      border: 2px solid var(--cyan-glow);
+      border-radius: 24px;
+      max-width: 520px;
+      width: 100%;
+      padding: 2.4rem 1.8rem;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(0, 180, 255, 0.45);
+      animation: winnerPop 0.5s ease;
+    }
+
+    @keyframes winnerPop {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .winner-stars {
+      color: var(--cyan-glow);
+      font-size: 1.4rem;
+      letter-spacing: 0.5em;
+      text-shadow: 0 0 14px rgba(56, 232, 255, 0.8);
+      margin-bottom: 1rem;
+    }
+
+    .winner-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.5rem, 4.5vw, 2.1rem);
+      font-weight: 900;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #ffffff 15%, #7dd3fc 65%, #00b4ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.7rem;
+    }
+
+    .winner-sub {
+      color: #cbd5e1;
+      font-size: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .winner-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.2rem;
+    }
+
+    .winner-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .winner-close:hover {
+      color: var(--cyan-glow);
+    }
   </style>
 </head>
 <body>
@@ -681,6 +768,21 @@
     </footer>
   </div>
 
+
+    <!-- Winner Vote Popup (appears when the countdown ends) -->
+    <div class="winner-overlay" id="winner-overlay" aria-hidden="true">
+      <div class="winner-card">
+        <div class="winner-stars">✦ ✦ ✦</div>
+        <h2 class="winner-title">WHO DO YOU THINK WILL WIN?</h2>
+        <p class="winner-sub">The stand-off has begun! Cast your vote before it's too late.</p>
+        <div class="winner-buttons">
+          <button class="vote-btn" onclick="castVote('bray'); closeWinnerPopup(event);">✦ BrayVR</button>
+          <button class="vote-btn" onclick="castVote('hgp'); closeWinnerPopup(event);">🦍 HGP Studios</button>
+        </div>
+        <button class="winner-close" onclick="closeWinnerPopup(event)">Maybe later ✦</button>
+      </div>
+    </div>
+
   <script>
     // Generate glowing 4-point blue stars in the background
     const starfield = document.getElementById('starfield');
@@ -721,6 +823,7 @@
         document.getElementById('hours').textContent = '00';
         document.getElementById('minutes').textContent = '00';
         document.getElementById('seconds').textContent = '00';
+        showWinnerPopup();
         return;
       }
 
@@ -754,6 +857,24 @@
       document.getElementById('bar-hgp').style.width = hgpPct + '%';
       document.getElementById('stat-bray').textContent = `BrayVR: ${brayPct}% (${brayVotes})`;
       document.getElementById('stat-hgp').textContent = `HGP Studios: ${hgpPct}% (${hgpVotes})`;
+    }
+
+    // Winner vote popup when the stand-off begins
+    let winnerShown = false;
+
+    function showWinnerPopup() {
+      if (winnerShown) return;
+      winnerShown = true;
+      const overlay = document.getElementById('winner-overlay');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeWinnerPopup(e) {
+      if (e) e.stopPropagation();
+      const overlay = document.getElementById('winner-overlay');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
     }
 
     // Birthday Blue Star Burst Effect
