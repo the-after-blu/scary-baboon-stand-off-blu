@@ -723,6 +723,36 @@
     }
     .owner-token-hint { font-size: .72rem; color: #6b93ad; margin: 6px 0; }
     .owner-save-status { font-size: .78rem; color: #38e8ff; margin-top: 8px; min-height: 1em; }
+    .dev-edit-btn { padding: 4px 16px; font-size: .78rem; }
+    .dev-overlay {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(2,6,12,.93);
+      display: none; align-items: stretch; justify-content: center; padding: 22px;
+    }
+    .dev-overlay.show { display: flex; }
+    .dev-panel {
+      background: #0d1626; border: 1px solid rgba(0,180,255,.4); border-radius: 12px;
+      display: flex; flex-direction: column; width: 100%; max-width: 1100px; overflow: hidden;
+      box-shadow: 0 0 60px rgba(0,180,255,.25);
+    }
+    .dev-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: rgba(0,180,255,.08);
+      border-bottom: 1px solid rgba(0,180,255,.25);
+    }
+    .dev-title { font: 600 .85rem/1 'Courier New', monospace; color: #7fdcff; }
+    .dev-file { color: #38e8ff; }
+    .dev-close { background: none; border: none; color: #eaf9ff; font-size: 1.1rem; cursor: pointer; }
+    .dev-code {
+      flex: 1; width: 100%; box-sizing: border-box; background: #060b14; color: #cdeeff;
+      border: none; outline: none; padding: 14px;
+      font: 12.5px/1.5 'Courier New', monospace; resize: none; white-space: pre; overflow: auto;
+    }
+    .dev-statusbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 14px; border-top: 1px solid rgba(0,180,255,.25);
+    }
+    .dev-status { font-size: .78rem; color: #7fdcff; flex: 1; }
     .vote-btn:disabled { opacity: .55; cursor: default; box-shadow: none; transform: none; }
     .pass-overlay {
       position: fixed; inset: 0; z-index: 70;
@@ -922,7 +952,7 @@
         <button class="vote-btn" id="owner-message-btn" onclick="saveOwnerMessage()">Post it</button>
       </div>
       <div class="owner-site-edit">
-        <div class="owner-edit-label">✎ Edit the website (saves to GitHub for everyone)</div>
+        <div class="owner-edit-label"><span>✎ Edit the website (saves to GitHub for everyone)</span> <button class="vote-btn dev-edit-btn" onclick="openDevEditor()">Edit</button></div>
         <label class="owner-field-label">The official sign</label>
         <textarea class="owner-textarea" id="edit-signline" maxlength="300" rows="2"></textarea>
         <label class="owner-field-label">The Event paragraph</label>
@@ -972,6 +1002,21 @@
           <button class="pass-key" onclick="passPress('del')">⌫</button>
         </div>
         <button class="pass-cancel" onclick="closePasscode()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Owner dev-tools editor: full site code, saved to GitHub -->
+    <div class="dev-overlay" id="dev-overlay" aria-hidden="true">
+      <div class="dev-panel">
+        <div class="dev-topbar">
+          <span class="dev-title">Elements &gt; <span class="dev-file">index.html</span></span>
+          <button class="dev-close" onclick="closeDevEditor()" aria-label="Close editor">✕</button>
+        </div>
+        <textarea class="dev-code" id="dev-code" spellcheck="false" autocomplete="off"></textarea>
+        <div class="dev-statusbar">
+          <span class="dev-status" id="dev-status"></span>
+          <button class="vote-btn" onclick="saveDevToGithub()">Save to GitHub</button>
+        </div>
       </div>
     </div>
 
@@ -1153,6 +1198,87 @@
         status.textContent = 'Could not save: ' + err.message;
       }
     }
+
+    // Dev-tools style editor: open the real page code, change anything, commit to GitHub
+    let devSha = '';
+
+    function openDevEditor() {
+      const overlay = document.getElementById('dev-overlay');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+      loadDevCode();
+    }
+
+    function closeDevEditor() {
+      const overlay = document.getElementById('dev-overlay');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    async function loadDevCode() {
+      const ta = document.getElementById('dev-code');
+      const status = document.getElementById('dev-status');
+      const token = getOwnerToken();
+      if (!token) {
+        ta.value = '';
+        status.textContent = 'Add your GitHub token first (in the Edit the website section below the panel).';
+        return;
+      }
+      ta.value = 'Loading the website code...';
+      status.textContent = 'Loading...';
+      try {
+        const res = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) throw new Error('GitHub would not accept the token (code ' + res.status + ')');
+        const file = await res.json();
+        const bytes = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+        devSha = file.sha;
+        ta.value = new TextDecoder().decode(bytes);
+        status.textContent = 'Loaded. Type your changes below, nothing changes on the site until you hit Save to GitHub.';
+      } catch (err) {
+        ta.value = '';
+        status.textContent = 'Could not load the code: ' + err.message;
+      }
+    }
+
+    async function saveDevToGithub() {
+      const token = getOwnerToken();
+      const ta = document.getElementById('dev-code');
+      const status = document.getElementById('dev-status');
+      if (!token) { status.textContent = 'Add your GitHub token first.'; return; }
+      const code = ta.value || '';
+      if (code.indexOf('</html>') === -1) { status.textContent = "That doesn't look like the full page (missing </html>). Fix that before saving."; return; }
+      status.textContent = 'Saving to GitHub...';
+      try {
+        const bytes = new TextEncoder().encode(code);
+        let bin = '';
+        bytes.forEach(b => bin += String.fromCharCode(b));
+        const put = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: 'Owner edit (dev tools) from the website',
+            content: btoa(bin),
+            sha: devSha
+          })
+        });
+        if (!put.ok) {
+          if (put.status === 409) throw new Error('The file changed since you opened it. Click Edit again to load the latest, then save.');
+          throw new Error('GitHub would not save the file (code ' + put.status + ')');
+        }
+        const done = await put.json();
+        devSha = done.content && done.content.sha ? done.content.sha : devSha;
+        status.textContent = 'Committed to GitHub! The website updates for everyone in about a minute, and it stays.';
+      } catch (err) {
+        status.textContent = 'Could not save: ' + err.message;
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById('dev-overlay');
+      if (overlay && overlay.classList.contains('show') && e.key === 'Escape') closeDevEditor();
+    });
 
     function renderVotes() {
       const total = brayVotes + hgpVotes;
