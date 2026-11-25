@@ -1219,26 +1219,35 @@
       const ta = document.getElementById('dev-code');
       const status = document.getElementById('dev-status');
       const token = getOwnerToken();
-      if (!token) {
-        ta.value = '';
-        status.textContent = 'Add your GitHub token first (in the Edit the website section below the panel).';
-        return;
-      }
       ta.value = 'Loading the website code...';
       status.textContent = 'Loading...';
+      // A copy of the website loads right away; the token is only needed to save.
+      let loaded = false;
       try {
-        const res = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
-          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
-        });
-        if (!res.ok) throw new Error('GitHub would not accept the token (code ' + res.status + ')');
-        const file = await res.json();
-        const bytes = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
-        devSha = file.sha;
-        ta.value = new TextDecoder().decode(bytes);
-        status.textContent = 'Loaded. Type your changes below, nothing changes on the site until you hit Save to GitHub.';
-      } catch (err) {
+        const res = await fetch(window.location.pathname, { cache: 'no-store' });
+        if (res.ok) { ta.value = await res.text(); loaded = true; }
+      } catch (err) {}
+      if (!loaded && token) {
+        try {
+          const res = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+          });
+          if (res.ok) {
+            const file = await res.json();
+            const bytes = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+            ta.value = new TextDecoder().decode(bytes);
+            loaded = true;
+          }
+        } catch (err) {}
+      }
+      devSha = '';
+      if (loaded) {
+        status.textContent = token
+          ? 'Loaded. Nothing changes on the site until you hit Save to GitHub.'
+          : 'Loaded a copy of the website. To make edits live, paste your GitHub token in the Edit the website section below.';
+      } else {
         ta.value = '';
-        status.textContent = 'Could not load the code: ' + err.message;
+        status.textContent = 'Could not load the website code. Check your connection and click Edit again.';
       }
     }
 
@@ -1251,6 +1260,14 @@
       if (code.indexOf('</html>') === -1) { status.textContent = "That doesn't look like the full page (missing </html>). Fix that before saving."; return; }
       status.textContent = 'Saving to GitHub...';
       try {
+        if (!devSha) {
+          const meta = await fetch('https://api.github.com/repos/the-after-blu/scary-baboon-stand-off-blu/contents/index.html', {
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+          });
+          if (!meta.ok) throw new Error('GitHub would not accept the token (code ' + meta.status + ')');
+          const mf = await meta.json();
+          devSha = mf.sha;
+        }
         const bytes = new TextEncoder().encode(code);
         let bin = '';
         bytes.forEach(b => bin += String.fromCharCode(b));
